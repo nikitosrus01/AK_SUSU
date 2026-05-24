@@ -1,27 +1,140 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Telemetry Replay</title>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AK SUSU — TELEMETRY REPLAY</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
 
-<h1>Telemetry Replay</h1>
+    <header class="header">
+        <div class="logo-zone">
+            <span class="blink-dot"></span>
+            <h1>TELEMETRY REPLAY</h1>
+        </div>
+        <div class="express-info">
+            <div class="info-box">ВРЕМЯ: <span id="exp-time">00:00:00.00</span></div>
+            <div class="info-box">ВЫСОТА: <span id="exp-alt">0.0</span> м</div>
+            <div class="info-box">СКОРОСТЬ: <span id="exp-speed">0.0</span> м/с</div>
+            <div class="info-box active-status">СТАТУС: <span id="exp-state">ОЖИДАНИЕ</span></div>
+        </div>
+        <div class="window-controls">
+            <button class="btn-tool" id="btn-modal-open">📊 ПРОВЕРКА ТЗ</button>
+            <input type="file" id="csv-file" accept=".csv" style="display:none">
+            <button class="btn-tool accent" id="btn-trigger-upload">📂 ЗАГРУЗИТЬ CSV</button>
+        </div>
+    </header>
 
-<input type="file" id="fileInput">
+    <main class="dashboard-grid">
+        <div class="col-left">
+            <div class="panel" id="panel-3d">
+                <div class="panel-header">3D ВИЗУАЛИЗАЦИЯ ПОЛЁТА</div>
+                <div class="panel-body" id="canvas-3d-container"></div>
+            </div>
+            <div class="panel" id="panel-map">
+                <div class="panel-header">КАРТА ПОЛЁТА (ИНС)</div>
+                <div class="panel-body" id="map"></div>
+            </div>
+        </div>
 
-<div id="controls">
-    <button onclick="play()">Play</button>
-    <button onclick="pause()">Pause</button>
-    <input type="range" id="slider" min="0" max="100" value="0">
-</div>
+        <div class="col-center">
+            <div class="panel" id="panel-states">
+                <div class="panel-header">СОСТОЯНИЯ СИСТЕМЫ</div>
+                <div class="panel-body">
+                    <ul class="state-list">
+                        <li id="st-start">СТАРТ</li>
+                        <li id="st-flight">ПОЛЁТ</li>
+                        <li id="st-drogue">ДРОГ-ЧУТ РАСКРЫТ</li>
+                        <li id="st-main">ОСН. ПАРАШЮТ</li>
+                        <li id="st-landing">ПОСАДКА</li>
+                        <li id="st-engines">ДВИГАТЕЛИ ВЫКЛ</li>
+                        <li id="st-done">МИССИЯ ЗАВЕРШЕНА</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="panel" id="panel-table">
+                <div class="panel-header">ТЕЛЕМЕТРИЯ (ТАБЛИЦА)</div>
+                <div class="panel-body table-responsive">
+                    <table id="telemetry-table">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>Высота</th>
+                                <th>Скорость</th>
+                                <th>Ускор.</th>
+                                <th>Давл.</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-<div id="chart"></div>
+        <div class="col-right">
+            <div class="panel" id="panel-charts">
+                <div class="panel-header">ТЕЛЕМЕТРИЯ (ГРАФИКИ)</div>
+                <div class="panel-body charts-container">
+                    <div class="chart-wrapper"><canvas id="chart-alt"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="chart-speed"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="chart-accel"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="chart-press"></canvas></div>
+                </div>
+            </div>
+            <div class="panel" id="panel-status-3d">
+                <div class="panel-header">СТАТУС-БАР СИСТЕМ АППАРАТА</div>
+                <div class="panel-body hardware-status">
+                    <div class="status-item"><span>Дрог-чут парашют:</span> <span id="hw-drogue" class="badge gray">Н/Д</span></div>
+                    <div class="status-item"><span>Основной парашют:</span> <span id="hw-main" class="badge gray">Н/Д</span></div>
+                    <div class="status-item"><span>Датчики БИНС:</span> <span id="hw-sensors" class="badge green">OK</span></div>
+                    <div class="status-item">
+                        <span>Аккумулятор:</span>
+                        <div class="progress-bar"><div id="hw-battery" style="width: 100%">100%</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+    <footer class="media-player">
+        <div class="player-controls">
+            <button class="btn-player" id="btn-play">▶ PLAY</button>
+            <button class="btn-player" id="btn-pause">⏸ PAUSE</button>
+        </div>
+        <div class="timeline-container">
+            <input type="range" id="timeline-slider" min="0" max="100" value="0">
+            <div class="time-counter">
+                <span id="current-time-string">00:00:00.00</span> / <span id="total-time-string">00:00:00.00</span>
+            </div>
+        </div>
+        <div class="playback-speed">
+            <select id="speed-selector">
+                <option value="1">1.0x</option>
+                <option value="2">2.0x</option>
+                <option value="5">5.0x</option>
+            </select>
+            <button class="btn-tool" id="btn-export">ЭКСПОРТ</button>
+        </div>
+    </footer>
 
+    <div class="modal" id="analysis-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>АНАЛИТИЧЕСКИЙ ВЕРИФИКАТОР ТЗ КОНКУРСА</h2>
+                <button class="close-btn" id="btn-modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="analysis-results">
+                <p style="color: #888;">Загрузите файл телеметрии для проведения автоматической экспертизы.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>

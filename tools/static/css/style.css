@@ -1,0 +1,307 @@
+:root {
+    --bg-main: #060913;
+    --bg-panel: #0d1222;
+    --border-color: #1e2942;
+    --text-main: #e2e8f0;
+    --text-muted: #64748b;
+    --accent: #2ecc71;
+    --accent-glow: rgba(46, 204, 113, 0.3);
+    --font-cyber: 'Courier New', Courier, monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-cyber);
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* HEADER STYLE */
+.header {
+    background-color: var(--bg-panel);
+    border-bottom: 2px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    height: 65px;
+}
+
+.logo-zone {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-zone h1 {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow: 0 0 10px var(--accent-glow);
+}
+
+.blink-dot {
+    width: 10px;
+    height: 10px;
+    background-color: var(--accent);
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+}
+
+.express-info {
+    display: flex;
+    gap: 20px;
+}
+
+.info-box {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+    padding: 5px 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.active-status {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* DASHBOARD LAYOUT GRID */
+.dashboard-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.5fr;
+    gap: 10px;
+    padding: 10px;
+    overflow: hidden;
+    height: calc(100vh - 135px);
+}
+
+.col-left, .col-center, .col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+}
+
+.panel {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+.panel-body {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ИНДИВИДУАЛЬНЫЕ НАСТРОЙКИ БЛОКОВ */
+#panel-3d { flex: 1.2; }
+#panel-map { flex: 1; min-height: 250px;}
+#panel-states { flex: 0.8; }
+#panel-table { flex: 1.5; }
+#panel-charts { flex: 3; }
+#panel-status-3d { flex: 0.8; }
+
+#map { width: 100%; height: 100%; background: #000;}
+
+/* СПИСОК СОСТОЯНИЙ */
+.state-list {
+    list-style: none;
+    padding: 10px;
+    font-size: 0.85rem;
+}
+
+.state-list li {
+    padding: 4px 10px;
+    margin-bottom: 3px;
+    border-left: 3px solid #334155;
+    color: var(--text-muted);
+}
+
+.state-list li.active {
+    border-left-color: var(--accent);
+    color: #fff;
+    background: rgba(46, 204, 113, 0.1);
+}
+
+/* ТАБЛИЦА ТЕЛЕМЕТРИИ */
+.table-responsive {
+    overflow-y: auto;
+    height: 100%;
+}
+
+#telemetry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    text-align: left;
+}
+
+#telemetry-table th, #telemetry-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+#telemetry-table th {
+    background: rgba(0,0,0,0.4);
+    position: sticky;
+    top: 0;
+    color: var(--text-muted);
+}
+
+#telemetry-table tr.active-row {
+    background-color: rgba(46, 204, 113, 0.15) !important;
+    color: #fff;
+}
+
+/* ГРАФИКИ */
+.charts-container {
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    gap: 5px;
+}
+.chart-wrapper {
+    flex: 1;
+    position: relative;
+    min-height: 75px;
+}
+
+/* СТАТУС БАР СИСТЕМ */
+.hardware-status {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    font-size: 0.8rem;
+}
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+}
+.badge.green { background: var(--accent); color: #000; font-weight: bold;}
+.badge.gray { background: #334155; color: #fff; }
+.progress-bar {
+    width: 100px;
+    background: #222;
+    border: 1px solid var(--border-color);
+    height: 14px;
+}
+#hw-battery {
+    background: var(--accent);
+    height: 100%;
+    font-size: 0.65rem;
+    text-align: center;
+    color: #000;
+}
+
+/* FOOTER MEDIA PLAYER */
+.media-player {
+    height: 70px;
+    background-color: var(--bg-panel);
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+}
+
+.timeline-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#timeline-slider {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.time-counter {
+    font-size: 0.85rem;
+    min-width: 180px;
+}
+
+/* КНОПКИ И ИНТЕРФЕЙС */
+.btn-tool, .btn-player, select {
+    background: #1e2942;
+    border: 1px solid #334155;
+    color: #fff;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+.btn-tool:hover, .btn-player:hover { border-color: var(--accent); }
+.btn-tool.accent { background-color: var(--accent); color: #000; font-weight: bold; border: none;}
+
+/* MODAL */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: var(--bg-panel);
+    border: 2px solid var(--border-color);
+    width: 550px;
+    padding: 20px;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+.close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
+
+.status-badge {
+    float: right;
+    font-weight: bold;
+    padding: 2px 8px;
+}
+.passed { color: #2ecc71; }
+.failed { color: #e74c3c; }
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
