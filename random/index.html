@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>AK SUSU — CSV 3D MISSION CONTROL</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0b111e;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        /* Dashboard Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            grid-template-rows: 1.3fr 1fr;
+            gap: 10px;
+            padding: 15px;
+            flex-grow: 1;
+            height: calc(100vh - 60px);
+        }
+        .block {
+            background-color: #121b2d;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .block-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 5;
+        }
+        
+        #main-view { grid-column: 1; grid-row: 1 / 3; position: relative; overflow: hidden; padding: 0; }
+        #charts-view { grid-column: 2; grid-row: 1; }
+        #table-view { grid-column: 2; grid-row: 2; }
+
+        #three-canvas { width: 100%; height: 100%; cursor: grab; }
+        #three-canvas:active { cursor: grabbing; }
+        
+        /* HUD Телеметрии */
+        .telemetry-overlay {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(11, 17, 30, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px;
+            border-left: 3px solid #3b82f6; z-index: 10;
+            pointer-events: none;
+        }
+        .telemetry-overlay div { margin-bottom: 6px; }
+        .green-text { color: #10b981; }
+        .blue-text { color: #3b82f6; }
+
+        /* Верхняя панель управления файлом */
+        .file-panel {
+            position: absolute; top: 15px; right: 15px; z-index: 10;
+            display: flex; gap: 10px;
+        }
+        .file-input-label {
+            background: #2563eb; color: white; padding: 8px 14px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;
+        }
+        .file-input-label:hover { background: #1d4ed8; }
+        #csv-file { display: none; }
+
+        /* Скролл-таблица */
+        .table-container {
+            overflow-y: auto;
+            flex-grow: 1;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        table { width: 100%; text-align: left; border-collapse: collapse; }
+        th, td { padding: 6px 6px; border-bottom: 1px solid #1e293b; }
+        tr.active-row { background-color: rgba(59, 130, 246, 0.25) !important; color: #60a5fa; }
+
+        /* Нижний плеер */
+        .controls {
+            height: 60px; background-color: #090d16;
+            border-top: 1px solid #1e293b;
+            display: flex; align-items: center; padding: 0 20px; gap: 20px;
+        }
+        .btn {
+            background: #1e293b; border: none; color: white;
+            padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; min-width: 80px;
+        }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn:not(:disabled):hover { background: #334155; }
+        .slider-container { flex-grow: 1; display: flex; align-items: center; gap: 10px; }
+        .slider { flex-grow: 1; accent-color: #3b82f6; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <div class="block" id="main-view">
+            <div class="telemetry-overlay">
+                <div>ВРЕМЯ: <span id="overlay-time" class="green-text">0.000</span> c</div>
+                <div>ВЫСОТА: <span id="overlay-alt">0.0</span> м</div>
+                <div>СКОРОСТЬ: <span id="overlay-vel">0.0</span> м/с</div>
+                <div>УСКОРЕНИЕ: <span id="overlay-acc">0.0</span> м/с²</div>
+                <div>ДАВЛЕНИЕ: <span id="overlay-press">0</span> Па</div>
+                <div>СТАТУС: <span id="overlay-stage" class="blue-text">ОЖИДАНИЕ CSV</span></div>
+            </div>
+
+            <div class="file-panel">
+                <label class="file-input-label" for="csv-file">ЗАГРУЗИТЬ CSV ЛОГ</label>
+                <input type="file" id="csv-file" accept=".csv">
+            </div>
+
+            <div id="three-canvas"></div>
+        </div>
+
+        <div class="block" id="charts-view">
+            <div class="block-title">Профиль высоты (CSV)</div>
+            <div style="position: relative; height: 100%; width: 100%;">
+                <canvas id="telemetryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="block" id="table-view">
+            <div class="block-title">Потоковые данные телеметрии</div>
+            <div class="table-container" id="scroll-box">
+                <table>
+                    <thead>
+                        <tr style="color: #64748b; position: sticky; top: 0; background: #121b2d;">
+                            <th>Время (мс)</th><th>Высота (м)</th><th>Скорость (м/с)</th><th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="4" style="text-align: center; color: #475569; padding-top: 40px;">Загрузите файл формата .csv для анализа</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="play-btn" disabled>СТАРТ</button>
+        <div class="slider-container">
+            <span id="current-time-label">0</span>мс
+            <input type="range" id="time-slider" class="slider" min="0" max="0" value="0" disabled>
+            <span id="max-time-label">0мс</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ======= 1. ГЛОБАЛЬНЫЙ МАССИВ ДЛЯ ДАННЫХ ИЗ CSV =======
+        let flightData = [];
+        let isPlaying = false;
+        let playInterval;
+
+        // ======= 2. ТРЁХМЕРНАЯ СЦЕНА С ГОРИЗОНТОМ (THREE.JS) =======
+        const container = document.getElementById('three-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x060b13);
+        scene.fog = new THREE.FogExp2(0x060b13, 0.08); // Туман у горизонта
+
+        // Камера с перспективой
+        const camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 1000);
+        // Позиционируем камеру под углом к горизонту
+        camera.position.set(0, 3, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Инструмент вращения курсором вокруг нашего модуля
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02; // Не даем камере упасть под текстуру Земли
+        controls.minDistance = 2; // Ограничение зума ближе
+        controls.maxDistance = 20; // Ограничение зума дальше
+
+        // Свет
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // Сетка/Поверхность Земли, уходящая к горизонту
+        const earthGroup = new THREE.Group();
+        
+        // Создаем большую плоскость рельефа
+        const groundGeo = new THREE.PlaneGeometry(100, 100, 50, 50);
+        // Кастомная сетка, чтобы ландшафт выглядел технологично (как радар или полигоны)
+        const groundMat = new THREE.MeshStandardMaterial({ 
+            color: 0x111e36, 
+            wireframe: true,
+            transparent: true,
+            opacity: 0.4
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2; // Кладем горизонтально
+        earthGroup.add(ground);
+
+        // Добавим круги дальности (радарную разметку земли)
+        for(let r=10; r<=50; r+=10) {
+            const circleGeo = new THREE.RingGeometry(r - 0.05, r + 0.05, 64);
+            const circleMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, side: THREE.DoubleSide });
+            const circle = new THREE.Mesh(circleGeo, circleMat);
+            circle.rotation.x = -Math.PI / 2;
+            earthGroup.add(circle);
+        }
+        scene.add(earthGroup);
+
+        // Создаем сам Спутник / Посадочный модуль в центре
+        const satGroup = new THREE.Group();
+        
+        // Цилиндрический корпус
+        const body = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.5, 1.2, 6), 
+            new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 })
+        );
+        body.position.y = 0.6;
+        satGroup.add(body);
+
+        // Посадочные опоры (ножки)
+        const legGeo = new THREE.BoxGeometry(0.1, 0.8, 0.1);
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+        for(let i=0; i<4; i++) {
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.y = 0.2;
+            leg.position.x = Math.sin(i * Math.PI/2) * 0.5;
+            leg.position.z = Math.cos(i * Math.PI/2) * 0.5;
+            leg.rotation.z = Math.sin(i * Math.PI/2) * -0.2;
+            leg.rotation.x = Math.cos(i * Math.PI/2) * 0.2;
+            satGroup.add(leg);
+        }
+        scene.add(satGroup);
+        
+        // Точка фокуса камеры всегда привязана к модулю
+        controls.target.set(0, 0.6, 0);
+
+        // Анимационный цикл рендеринга
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Для плавного затухания вращения
+            
+            // Спутник совершает микровибрации на орбите/в полете
+            if(isPlaying) {
+                satGroup.rotation.y += 0.005;
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ======= 3. ИНИЦИАЛИЗАЦИЯ ПУСТОГО ГРАФИКА =======
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        const telemetryChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Высота (м)', data: [], borderColor: '#3b82f6', pointRadius: 0, tension: 0.2 }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false } } }
+        });
+
+        // ======= 4. ПАРСЕР ЗАГРУЖАЕМОГО CSV ФАЙЛА =======
+        document.getElementById('csv-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const text = evt.target.result;
+                parseCSVData(text);
+            };
+            reader.readAsText(file);
+        });
+
+        function parseCSVData(text) {
+            const lines = text.split('\n');
+            flightData = [];
+            
+            // Читаем строки, пропускаем заголовок
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].trim();
+                if (!row) continue;
+                
+                const cols = row.split(',');
+                if (cols.length < 6) continue;
+
+                flightData.push({
+                    time_ms: parseInt(cols[0]),
+                    alt: parseFloat(cols[1]),
+                    speed: parseFloat(cols[2]),
+                    accel: parseFloat(cols[3]),
+                    press: parseInt(cols[4]),
+                    state: cols[5]
+                });
+            }
+
+            if (flightData.length === 0) {
+                alert("Ошибка парсинга CSV. Проверьте структуру колонок!");
+                return;
+            }
+
+            // Активируем интерфейс плеера
+            document.getElementById('play-btn').disabled = false;
+            const slider = document.getElementById('time-slider');
+            slider.disabled = false;
+            slider.min = 0;
+            slider.max = flightData.length - 1;
+            slider.value = 0;
+
+            document.getElementById('max-time-label').innerText = flightData[flightData.length - 1].time_ms + "мс";
+
+            // Перестраиваем таблицу логов
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            flightData.forEach((d, idx) => {
+                tbody.innerHTML += `<tr id="row-${idx}"><td>${d.time_ms}</td><td>${d.alt}</td><td>${d.speed}</td><td>${d.state}</td></tr>`;
+            });
+
+            // Обновляем график под новые данные лога
+            telemetryChart.data.labels = flightData.map(d => d.time_ms + 'мс');
+            telemetryChart.data.datasets[0].data = flightData.map(d => d.alt);
+            telemetryChart.update();
+
+            // Отрендерить самый первый кадр
+            renderFrame(0);
+        }
+
+        // ======= 5. ОБНОВЛЕНИЕ КАДРА И СИНХРОНИЗАЦИЯ ТЕЛЕМЕТРИИ =======
+        function renderFrame(index) {
+            const data = flightData[index];
+            if (!data) return;
+
+            // Текстовый блок HUD
+            document.getElementById('overlay-time').innerText = (data.time_ms / 1000).toFixed(3);
+            document.getElementById('overlay-alt').innerText = data.alt;
+            document.getElementById('overlay-vel').innerText = data.speed;
+            document.getElementById('overlay-acc').innerText = data.accel;
+            document.getElementById('overlay-press').innerText = data.press;
+            document.getElementById('overlay-stage').innerText = data.state;
+            
+            document.getElementById('current-time-label').innerText = data.time_ms;
+
+            // Иллюзия движения ландшафта под модулем:
+            // Сдвигаем «Землю» по оси Z пропорционально пройденному времени лога
+            earthGroup.position.z = (data.time_ms * 0.005) % 10; 
+            
+            // Изменение высоты модуля в 3D сцене (диапазон высоты масштабируем визуально)
+            satGroup.position.y = Math.min(data.alt * 0.05, 4); 
+
+            // Скроллим и подсвечиваем таблицу кадров лога
+            document.querySelectorAll('#table-body tr').forEach(r => r.classList.remove('active-row'));
+            const targetRow = document.getElementById(`row-${index}`);
+            if (targetRow) {
+                targetRow.classList.add('active-row');
+                document.getElementById('scroll-box').scrollTop = targetRow.offsetTop - 80;
+            }
+        }
+
+        // ======= 6. ЛОГИКА ТАЙМЛАЙНА (КНОПКИ ПЛЕЕРА) =======
+        const slider = document.getElementById('time-slider');
+        const playBtn = document.getElementById('play-btn');
+
+        slider.addEventListener('input', (e) => {
+            renderFrame(parseInt(e.target.value));
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playBtn.innerText = "СТАРТ";
+            } else {
+                playBtn.innerText = "ПАУЗА";
+                playInterval = setInterval(() => {
+                    let idx = parseInt(slider.value);
+                    if (idx >= flightData.length - 1) {
+                        idx = 0; // Сброс по кругу
+                    } else {
+                        idx++;
+                    }
+                    slider.value = idx;
+                    renderFrame(idx);
+                }, 60); // Скорость симуляции шага кадров
+            }
+            isPlaying = !isPlaying;
+        });
+
+        // Адаптивный ресайз окна Three.js
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>

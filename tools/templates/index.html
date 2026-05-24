@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Telemetry Replay</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+<body>
+
+<h1>Telemetry Replay</h1>
+
+<input type="file" id="fileInput">
+
+<div id="controls">
+    <button onclick="play()">Play</button>
+    <button onclick="pause()">Pause</button>
+    <input type="range" id="slider" min="0" max="100" value="0">
+</div>
+
+<div id="chart"></div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
